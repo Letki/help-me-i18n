@@ -1,27 +1,90 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import {
+  commands,
+  ExtensionContext,
+  window,
+  workspace,
+  languages,
+  TextDocument,
+  Position,
+  CancellationToken,
+  Hover,
+  DocumentSemanticTokensProvider,
+  SemanticTokens,
+  ProviderResult,
+  ReferenceContext,
+} from "vscode";
+import * as path from "path";
+import { Global } from "./core/Global";
+import * as _ from "lodash";
+import { transformCode2Ast } from "./core/Parser";
+import { Log } from "./utils/Log";
+import traverse from "@babel/traverse";
 
-// this method is called when your extension is activated
-// your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+function provideHover(
+  document: TextDocument,
+  position: Position,
+  token: CancellationToken
+) {
+  const fileName = document.fileName;
+  const documentText = document.getText();
+  const reg = /useI18n\(\S*\)/g;
+  const localeKeyReg = /(["'])(?:(?=(\\?))\2.)*?\1/;
+  const removeCamelReg = /["']/g;
+  // const ast = transformCode2Ast(documentText)
+//   const visitor = {
+//     VariableDeclarator(path:any)
+//     {
+//       console.log("🚀 ~ file: extension.ts ~ line 37 ~ path", JSON.stringify(path))
+//         const func_name = path.node.id.name;
+//         Log.info(func_name)
+//         console.log("🚀 ~ file: extension.ts ~ line 40 ~ func_name", func_name)
+//         const binding = path.scope.getBinding(func_name);
+//     },
+// }
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "sl-i18n-tools" is now active!');
+//   traverse(ast, visitor);
+//   Log.info(JSON.stringify(transformCode2Ast(documentText), undefined, '\t'))
+  const originI18n =
+    documentText.match(reg)?.map((origin) => {
+      return origin.match(localeKeyReg)?.[0]?.replace(removeCamelReg, "");
+    }) ?? [];
+  console.log(
+    "🚀 ~ file: extension.ts ~ line 32 ~ originI18n ~ originI18n",
+    originI18n
+  );
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('sl-i18n-tools.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
+  const word = document
+    .getText(document.getWordRangeAtPosition(position, localeKeyReg))
+    .replace(removeCamelReg, "");
+  const localeRst = _.compact(
+    originI18n.map((i18nKey) => {
+      return Global.localeData[`${i18nKey}.${word}`];
+    })
+  );
 
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from sl-i18n-tools!');
-	});
-
-	context.subscriptions.push(disposable);
+  if (localeRst.length > 0) {
+    let hoverText = "";
+    localeRst.forEach((data, index) => {
+      hoverText =
+        hoverText + `${index !== 0 ? "\n" : ""}i18n zh-CN -> : ${data}`;
+    });
+    return new Hover(hoverText);
+  }
 }
 
-// this method is called when your extension is deactivated
+export async function activate(context: ExtensionContext) {
+  console.log('Congratulations, your extension "sl-i18n-tools" is now active!');
+  // languages.registerDeclarationProvider(["typescript", "typescriptreact"], (document: TextDocument, position: Position, token: CancellationToken) => {
+  //   const rst = languages.match('', document);
+  //   console.log("🚀 ~ file: extension.ts ~ line 37 ~ languages.registerDeclarationProvider ~ rst", rst)
+  //   console.log(document, position, token)
+  // })
+  await Global.init(context);
+  context.subscriptions.push(
+    languages.registerHoverProvider(["typescript", "typescriptreact"], {
+      provideHover,
+    })
+  );
+}
+
 export function deactivate() {}
