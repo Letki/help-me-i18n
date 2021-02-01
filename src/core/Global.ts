@@ -1,4 +1,9 @@
-import { ExtensionContext, window, workspace } from "vscode";
+import {
+  ExtensionContext,
+  TextEditorDecorationType,
+  window,
+  workspace,
+} from "vscode";
 import * as glob from "glob";
 import * as path from "path";
 import * as fe from "fs-extra";
@@ -6,6 +11,7 @@ import * as _ from "lodash";
 import { loadModuleData } from "../utils";
 import StatusBar from "./StatusBar";
 import { Log } from "../utils/Log";
+import { localeTraverse } from "./Parser";
 
 interface IExtensionConfig {
   supportLocales: string[];
@@ -33,6 +39,8 @@ export class Global {
    * 当前选择的语言
    */
   static currentLocale: string;
+  static disappearDecorationType: TextEditorDecorationType;
+
   static async init(context: ExtensionContext) {
     this.context = context;
     context.subscriptions.push(
@@ -51,8 +59,12 @@ export class Global {
     const enable = await this.loadConfig();
     if (enable) {
       this.currentLocale = this.initCurrentLocale();
-      this.readLocalesFiles();
       StatusBar.init();
+      await this.readLocalesFiles();
+      this.initDecorationType();
+      // 对当前的编辑器进行i8n转换
+      window.activeTextEditor?.document.getText() &&
+        localeTraverse(window.activeTextEditor?.document.getText());
     }
   }
 
@@ -134,5 +146,18 @@ export class Global {
       return this.extensionConfig.supportLocales?.[0];
     }
     return defaultSetting.supportLocales?.[0];
+  }
+
+  private static initDecorationType() {
+    const disappearDecorationType = window.createTextEditorDecorationType({
+      textDecoration: "", // a hack to inject custom style
+      after: {
+        backgroundColor: "#434343",
+        color: "#C0C4CC",
+        border: "0.2px solid #bfbfbf",
+        margin: "0 0 0 6px",
+      },
+    });
+    this.disappearDecorationType = disappearDecorationType;
   }
 }

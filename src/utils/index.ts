@@ -1,5 +1,9 @@
 import * as path from "path";
 import * as child_process from "child_process";
+import { transformCode2Ast } from "../core/Parser";
+import { Log } from "../utils/Log";
+import traverse, { NodePath } from "@babel/traverse";
+import { VariableDeclaration } from "../../node_modules/@babel/types/lib/index";
 
 export const loadModuleData = async (
   filePath: string,
