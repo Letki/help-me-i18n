@@ -7,15 +7,15 @@ import { Global } from "./Global";
 
 const isI18nHookCallee = (path: NodePath<VariableDeclaration>) => {
   return (
+    path.node.type === 'VariableDeclaration'&&
     path.node.declarations?.[0].init?.type === "CallExpression" &&
     path.node.declarations?.[0].init.callee.type === "Identifier" &&
     path.node.declarations?.[0].init.callee.name === "useI18n"
   );
 };
 const getI18nHookCalleeArgs = (path: NodePath<VariableDeclaration>) => {
-  if (isI18nHookCallee(path)) {
-    // @ts-ignore
-    return path.node.declarations?.[0].init.arguments;
+  if (isI18nHookCallee(path) && path.node.declarations?.[0].init?.type === 'CallExpression' && path.node.declarations?.[0].init?.arguments?.[0].type === 'StringLiteral') {
+    return path.node.declarations?.[0].init?.arguments?.[0].value;
   }
   return [];
 };
@@ -24,10 +24,8 @@ const getI18nHookCalleeArgs = (path: NodePath<VariableDeclaration>) => {
  * @param path
  */
 const getI18nInitId = (path: NodePath<VariableDeclaration>) => {
-  if (isI18nHookCallee(path)) {
-    // @ts-ignore
+  if (isI18nHookCallee(path) && path.node.declarations?.[0].id.type === 'Identifier' ) {
     const idNode = path.node.declarations?.[0].id;
-    // @ts-ignore
     return idNode?.name ?? "";
   }
   return "";
@@ -61,53 +59,85 @@ export function transformCode2Ast(code: string) {
       ["pipelineOperator", { proposal: "minimal" }],
       "throwExpressions",
       "topLevelAwait",
-      "estree",
     ],
   });
 }
 
 export const localeTraverse = (documentText: string) => {
   const ast = transformCode2Ast(documentText);
-  const keyRange:DecorationOptions[] = []
-  const i18nInitData = {} as any
+  const keyRange: DecorationOptions[] = [];
+
+  const setDecorationsKey = (
+    localeDataKey: string,
+    option: {
+      line?: number;
+      column?: number;
+    }
+  ) => {
+    keyRange.push({
+      renderOptions: {
+        after: {
+          contentText: `${Global.localeData[localeDataKey]}`,
+        },
+      },
+      range: new Range(
+        new Position((option.line ?? 1) - 1, (option.column ?? 1) - 1),
+        new Position((option.line ?? 1) - 1, (option.column ?? 1) - 1)
+      ),
+    });
+  };
   traverse(ast, {
     VariableDeclaration(path) {
       if (isI18nHookCallee(path)) {
         // const i18nId =
-        const prefixKey = getI18nHookCalleeArgs(path)[0]?.value;
+        const prefixKey = getI18nHookCalleeArgs(path);
         const id = getI18nInitId(path);
-        i18nInitData[id] = prefixKey
-        path.scope.getBinding(id)?.referencePaths.forEach((path) => {
-          // @ts-ignore
-          // console.log(path.container.arguments);
-          
-          // @ts-ignore
-          path.container?.arguments?.forEach((element: any) => {
-            if (typeof element.value === "string") {
-              console.log(
-                `${prefixKey}.${element.value}: --->${
-                  Global.localeData[`${prefixKey}.${element.value}`]
-                }`
-              );
-              
-              keyRange.push({
-                renderOptions: {
-                    after: {
-                        contentText: `${Global.localeData[`${prefixKey}.${element.value}`]}`
-                    }
-                },
-                range:new Range(new Position(element.loc?.end.line - 1 ?? 0, element.loc?.start.end - 1 ?? 0), new Position(element.loc?.end.line - 1 ?? 0, element.loc?.end.column - 1 ?? 0))
+        path.parentPath.traverse({
+          CallExpression(callPath) {
+            if (
+              callPath.node.callee.type === "Identifier" &&
+              callPath.node.callee?.name === id
+            ) {
+              callPath.node.arguments.forEach((element) => {
+                if (element.type === "StringLiteral") {
+                  console.log(
+                    `${prefixKey}.${element.value}: --->${
+                      Global.localeData[`${prefixKey}.${element.value}`]
+                    }`
+                  );
+                  setDecorationsKey(`${prefixKey}.${element.value}`, {
+                      line: element.loc?.end?.line,
+                      column: element.loc?.end?.column
+                  });
+                }
               });
             }
-          });
-        });        
-        console.log(
-          "🚀 ~ file: extension.ts ~ line 70 ~ VariableDeclaration ~ des",
-          prefixKey
-        );
+          },
+        //   ObjectExpression(objectPath) {
+        //     objectPath.node.properties.forEach((prop) => {
+        //       if (
+        //         prop.type === "ObjectProperty" &&
+        //         prop.value.type === "CallExpression" &&
+        //         prop.value.callee.type === "Identifier" &&
+        //         prop.value.callee.name === id
+        //       ) {
+        //         prop.value.arguments.forEach((ar) => {
+        //           if (ar.type === "StringLiteral") {
+        //             setDecorationsKey(`${prefixKey}.${ar.value}`, {
+        //                 line: ar.loc?.end?.line,
+        //                 column: ar.loc?.end?.column
+        //             });
+        //           }
+        //         });
+        //       }
+        //     });
+        //   },
+        });
       }
     },
   });
-
-  window.activeTextEditor?.setDecorations(Global.disappearDecorationType, keyRange);
+  window.activeTextEditor?.setDecorations(
+    Global.disappearDecorationType,
+    keyRange
+  );
 };
