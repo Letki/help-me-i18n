@@ -13,27 +13,52 @@
 		"onLanguage:javascript",
 		"onLanguage:javascriptreact",
 		"onLanguage:typescript",
-		"onLanguage:typescriptreact",
-		"workspaceContains:sl-i18n-setting.json"
+		"onLanguage:typescriptreact"
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
-		"commands": [
-			{
-				"command": "sl-i18n-tools.helloWorld",
-				"title": "Hello World"
-			}
-		],
 		"viewsContainers": {
 			"activitybar": [
 				{
 					"id": "sl-i18n",
 					"title": "sl-i18n",
-					"icon": "assets/logo.svg"
+					"icon": "assets/logo.png"
 				}
 			]
+		},
+		"configuration": {
+			"type": "object",
+			"title": "easy-i18n的配置",
+			"properties": {
+				"help-me-i18n.enable":{
+					"type": "boolean",
+					"default": false,
+					"markdownDescription": "设置easy-i18n启用和关闭, 默认为关闭"
+				},
+				"help-me-i18n.supportLocales":{
+					"type": ["array"],
+					"default": ["zh-CN", "en-US"],
+					"markdownDescription": "支持的语言列表"
+				},
+				"help-me-i18n.hookMatch":{
+					"type": ["array"],
+					"default": ["useI18n, useTranslation", "useIntl"],
+					"markdownDescription": "代码中多语言使用hook的名字"
+				},
+				"help-me-i18n.varKeyMatch":{
+					"type": ["array"],
+					"default": ["t"],
+					"markdownDescription": "如果honk导出是个对象, 这个是设置导出使用的值"
+				},
+				"help-me-i18n.localePath":{
+					"type": ["string", "array"],
+					"default": "/src/**/locales/**/{locale}.ts",
+					"markdownDescription": "语言资源的路径, **{locale}占位符必须保留**,locale表示当前显示哪种语言, 会自动根据语言环境传入"
+				}
+			}
 		}
 	},
+	"icon": "assets/logo.png",
 	"scripts": {
 		"vscode:prepublish": "yarn run package",
 		"compile": "webpack --config ./build/node-extension.webpack.config.js",
@@ -68,6 +93,7 @@
 	"dependencies": {
 		"@babel/parser": "^7.12.11",
 		"@babel/traverse": "^7.12.12",
+		"chokidar": "^3.5.1",
 		"eval": "^0.1.4",
 		"flat": "^5.0.2",
 		"fs-extra": "^9.1.0",

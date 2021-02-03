@@ -3,17 +3,28 @@ import traverse from "@babel/traverse";
 import { NodePath } from "@babel/traverse";
 import { DecorationOptions, Position, Range, window, workspace } from "vscode";
 import { VariableDeclaration } from "../../node_modules/@babel/types/lib/index";
+import { Log } from "../utils/Log";
 import { Global } from "./Global";
 
+/**
+ * 判断是不是对应hook的调用
+ * @param path
+ */
 const isI18nHookCallee = (path: NodePath<VariableDeclaration>) => {
   return (
     path.node.type === "VariableDeclaration" &&
     path.node.declarations?.[0].init?.type === "CallExpression" &&
     path.node.declarations?.[0].init.callee.type === "Identifier" &&
-    path.node.declarations?.[0].init.callee.name ===
-      Global.extensionConfig?.hookMatch
+    Global.extensionConfig?.hookMatch.includes(
+      path.node.declarations?.[0].init.callee.name
+    )
   );
 };
+
+/**
+ * 获取hook调用的参数
+ * @param path
+ */
 const getI18nHookCalleeArgs = (path: NodePath<VariableDeclaration>) => {
   if (
     isI18nHookCallee(path) &&
@@ -52,6 +63,10 @@ const getI18nInitId = (path: NodePath<VariableDeclaration>) => {
   return "";
 };
 
+/**
+ * 将代码转换为ast
+ * @param code
+ */
 export function transformCode2Ast(code: string) {
   return parser.parse(code, {
     sourceType: "module",
@@ -84,8 +99,17 @@ export function transformCode2Ast(code: string) {
   });
 }
 
+/**
+ * 根据上下文将多语言字段翻译为对应语言
+ * @param documentText
+ */
 export const localeTraverse = (documentText: string) => {
-  const ast = transformCode2Ast(documentText);
+  let ast;
+  try {
+    ast = transformCode2Ast(documentText);
+  } catch (error) {
+    Log.info(error)
+  }
   const keyRange: DecorationOptions[] = [];
 
   const setDecorationsKey = (
@@ -121,15 +145,13 @@ export const localeTraverse = (documentText: string) => {
             ) {
               callPath.node.arguments.forEach((element) => {
                 if (element.type === "StringLiteral") {
-                  console.log(
-                    `${prefixKey}.${element.value}: --->${
-                      Global.localeData[`${prefixKey}.${element.value}`]
-                    }`
+                  setDecorationsKey(
+                    `${prefixKey ? `${prefixKey}.` : ""}${element.value}`,
+                    {
+                      line: element.loc?.end?.line,
+                      column: element.loc?.end?.column,
+                    }
                   );
-                  setDecorationsKey(`${prefixKey ? `${prefixKey}.` : ''}${element.value}`, {
-                    line: element.loc?.end?.line,
-                    column: element.loc?.end?.column,
-                  });
                 }
               });
             }

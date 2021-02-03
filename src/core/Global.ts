@@ -1,5 +1,6 @@
 import {
   ExtensionContext,
+  languages,
   TextEditorDecorationType,
   window,
   workspace,
@@ -13,20 +14,26 @@ import { loadModuleData } from "../utils";
 import StatusBar from "./StatusBar";
 import { Log } from "../utils/Log";
 import { localeTraverse } from "./Parser";
+import { EXT_NAME, SETTING_NAME } from "../constants";
+import * as chokidar from "chokidar";
+import ProvideHover from "./ProvideHover";
 
 interface IExtensionConfig {
   supportLocales: string[];
-  hookMatch: string;
-  localePath: string;
-  varKeyMatch: string[]
+  hookMatch: string[];
+  localePath: string | string[];
+  varKeyMatch: string[];
+  enable: boolean;
   [key: string]: any;
 }
 const configFileName = "sl-i18n-setting.json";
 const defaultSetting = {
+  // 默认关闭
+  enable: false,
   supportLocales: ["zh-CN", "en-US"],
-  hookMatch: "useI18n",
+  hookMatch: ["useI18n, useTranslation", "useIntl"],
   localePath: "/src/**/locales/**/{locale}.ts",
-  varKeyMatch: ['t'],
+  varKeyMatch: ["t"],
 } as IExtensionConfig;
 
 export class Global {
@@ -53,15 +60,6 @@ export class Global {
     context.subscriptions.push(
       workspace.onDidChangeWorkspaceFolders((e) => this.updateRootPath())
     );
-    context.subscriptions.push(
-      window.onDidChangeActiveTextEditor((e) => this.updateRootPath())
-    );
-    context.subscriptions.push(
-      workspace.onDidOpenTextDocument((e) => this.updateRootPath())
-    );
-    context.subscriptions.push(
-      workspace.onDidCloseTextDocument((e) => this.updateRootPath())
-    );
     /**
      * 监听保存文件时重新获取字段值
      */
@@ -76,8 +74,17 @@ export class Global {
       await this.readLocalesFiles();
       this.initDecorationType();
       // 对当前的编辑器进行i8n转换
-      window.activeTextEditor?.document.getText() &&
-        localeTraverse(window.activeTextEditor?.document.getText());
+      this.transformActiveEditor();
+      ProvideHover.init(context);
+
+      context.subscriptions.push(
+        window.onDidChangeActiveTextEditor((editor) => {
+          const documentText = editor?.document.getText();
+          if (documentText) {
+            localeTraverse(documentText);
+          }
+        })
+      );
     }
   }
 
@@ -107,17 +114,31 @@ export class Global {
   }
 
   private static async readLocalesFiles() {
+    const { extensionConfig } = Global;
     Log.info(`正在搜索所有语言文件路径....`);
-    let localesFiles = glob.sync(
-      _.replace(
-        Global.extensionConfig?.localePath ?? '',
-        "{locale}",
-        Global.currentLocale
-      ),
-      {
-        root: path.resolve(Global._rootPath),
-      }
-    );
+    let localesFiles = [] as string[];
+    if (Array.isArray(extensionConfig?.localePath)) {
+      extensionConfig?.localePath.forEach((localeFilePath) => {
+        const list = glob.sync(
+          _.replace(localeFilePath ?? "", "{locale}", Global.currentLocale),
+          {
+            root: path.resolve(Global._rootPath),
+          }
+        );
+        localesFiles = localesFiles.concat(list);
+      });
+    } else {
+      localesFiles = glob.sync(
+        _.replace(
+          extensionConfig?.localePath ?? "",
+          "{locale}",
+          Global.currentLocale
+        ),
+        {
+          root: path.resolve(Global._rootPath),
+        }
+      );
+    }
     Log.info(`搜索完成, 正在加载所有语言文件....`);
     const promises = localesFiles.map((filePath: string) => {
       return loadModuleData(filePath, this.context.extensionPath);
@@ -132,27 +153,19 @@ export class Global {
     );
     Log.info(`加载语言文件完毕....`);
     this.localeData = flat(allLocaleData);
+    Log.info(`开始监听语言文件变化....`);
+    // 开始监听语言文件变化
+    this.watchFile(localesFiles);
   }
 
   private static async loadConfig() {
-    const filepath = `${this._rootPath}/${configFileName}`;
-    if (!fe.existsSync(filepath)) {
-      Log.info(`🕳 Project Config file "${configFileName}" not exists`);
-      return false;
-    }
-
-    Log.info(`📦 Packages file "${configFileName}" found`);
-
-    try {
-      const raw = await fe.readFile(filepath);
-      const data = JSON.parse(raw?.toString());
-      this.extensionConfig = _.assign(defaultSetting, data);
-    } catch (err) {
-      Log.info(`⚠ Error on parsing package file "${configFileName}"`);
-      this.extensionConfig = defaultSetting;
-    } finally {
-      return true;
-    }
+    const config = {} as IExtensionConfig;
+    Object.keys(defaultSetting).forEach((key) => {
+      config[key] =
+        workspace.getConfiguration(SETTING_NAME).get(key) ?? defaultSetting[key];
+    });
+    this.extensionConfig = config;
+    return config.enable;
   }
   /**
    * 初始化选择显示的语言
@@ -176,5 +189,27 @@ export class Global {
       },
     });
     this.disappearDecorationType = disappearDecorationType;
+  }
+
+  static watchFile(filePath: string | string[]) {
+    const watcher = chokidar.watch(filePath);
+    const changeCallback = _.debounce(async (path) => {
+      Log.info(`Locale File ${path} has been changed`);
+      // 读取文件重新塞回去
+      const newData = await loadModuleData(path, this.context.extensionPath);
+      this.localeData = _.assign(this.localeData, flat(newData));
+      // 触发当前活动编辑器重新检查
+      if (window.activeTextEditor?.document.uri.path === path) return;
+      this.transformActiveEditor();
+    }, 300);
+    watcher.on("change", changeCallback);
+  }
+
+  /**
+   * 对当前的编辑器进行i8n转换
+   */
+  static transformActiveEditor() {
+    window.activeTextEditor?.document.getText() &&
+      localeTraverse(window.activeTextEditor?.document.getText());
   }
 }
