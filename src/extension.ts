@@ -13,6 +13,8 @@ import {
   ProviderResult,
   ReferenceContext,
   Range,
+  CompletionItem,
+  CompletionItemKind,
 } from "vscode";
 import * as path from "path";
 import { Global } from "./core/Global";
@@ -73,7 +75,12 @@ export async function activate(context: ExtensionContext) {
         // );
       }
     })
-  );
+    );
+    // context.subscriptions.push(languages.registerReferenceProvider('typescriptreact', {
+    //   provideReferences(document: TextDocument, position: Position, context: ReferenceContext, token: CancellationToken) {
+    //     return [new CompletionItem()]
+    //   }
+    // }))
 }
 
 export function deactivate() {}

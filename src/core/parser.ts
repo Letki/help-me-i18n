@@ -1,32 +1,53 @@
 import parser = require("@babel/parser");
 import traverse from "@babel/traverse";
 import { NodePath } from "@babel/traverse";
-import { DecorationOptions, Position, Range, window } from "vscode";
+import { DecorationOptions, Position, Range, window, workspace } from "vscode";
 import { VariableDeclaration } from "../../node_modules/@babel/types/lib/index";
 import { Global } from "./Global";
 
 const isI18nHookCallee = (path: NodePath<VariableDeclaration>) => {
   return (
-    path.node.type === 'VariableDeclaration'&&
+    path.node.type === "VariableDeclaration" &&
     path.node.declarations?.[0].init?.type === "CallExpression" &&
     path.node.declarations?.[0].init.callee.type === "Identifier" &&
-    path.node.declarations?.[0].init.callee.name === "useI18n"
+    path.node.declarations?.[0].init.callee.name ===
+      Global.extensionConfig?.hookMatch
   );
 };
 const getI18nHookCalleeArgs = (path: NodePath<VariableDeclaration>) => {
-  if (isI18nHookCallee(path) && path.node.declarations?.[0].init?.type === 'CallExpression' && path.node.declarations?.[0].init?.arguments?.[0].type === 'StringLiteral') {
+  if (
+    isI18nHookCallee(path) &&
+    path.node.declarations?.[0].init?.type === "CallExpression" &&
+    path.node.declarations?.[0].init?.arguments?.[0]?.type === "StringLiteral"
+  ) {
     return path.node.declarations?.[0].init?.arguments?.[0].value;
   }
-  return [];
+  return "";
 };
 /**
  * 获取hook的变量名
  * @param path
  */
 const getI18nInitId = (path: NodePath<VariableDeclaration>) => {
-  if (isI18nHookCallee(path) && path.node.declarations?.[0].id.type === 'Identifier' ) {
-    const idNode = path.node.declarations?.[0].id;
-    return idNode?.name ?? "";
+  if (isI18nHookCallee(path)) {
+    // 直接等于赋值
+    if (path.node.declarations?.[0].id.type === "Identifier") {
+      const idNode = path.node.declarations?.[0].id;
+      return idNode?.name ?? "";
+    }
+    // 结构赋值
+    if (path.node.declarations?.[0].id.type === "ObjectPattern") {
+      for (const variable of path.node.declarations[0].id.properties) {
+        if (
+          variable.type === "ObjectProperty" &&
+          variable.key.type === "Identifier" &&
+          Global.extensionConfig?.varKeyMatch.includes(variable.key.name)
+        ) {
+          return variable.key.name;
+        }
+      }
+      path.node.declarations?.[0].id.properties;
+    }
   }
   return "";
 };
@@ -105,33 +126,14 @@ export const localeTraverse = (documentText: string) => {
                       Global.localeData[`${prefixKey}.${element.value}`]
                     }`
                   );
-                  setDecorationsKey(`${prefixKey}.${element.value}`, {
-                      line: element.loc?.end?.line,
-                      column: element.loc?.end?.column
+                  setDecorationsKey(`${prefixKey ? `${prefixKey}.` : ''}${element.value}`, {
+                    line: element.loc?.end?.line,
+                    column: element.loc?.end?.column,
                   });
                 }
               });
             }
           },
-        //   ObjectExpression(objectPath) {
-        //     objectPath.node.properties.forEach((prop) => {
-        //       if (
-        //         prop.type === "ObjectProperty" &&
-        //         prop.value.type === "CallExpression" &&
-        //         prop.value.callee.type === "Identifier" &&
-        //         prop.value.callee.name === id
-        //       ) {
-        //         prop.value.arguments.forEach((ar) => {
-        //           if (ar.type === "StringLiteral") {
-        //             setDecorationsKey(`${prefixKey}.${ar.value}`, {
-        //                 line: ar.loc?.end?.line,
-        //                 column: ar.loc?.end?.column
-        //             });
-        //           }
-        //         });
-        //       }
-        //     });
-        //   },
         });
       }
     },

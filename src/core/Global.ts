@@ -8,6 +8,7 @@ import * as glob from "glob";
 import * as path from "path";
 import * as fe from "fs-extra";
 import * as _ from "lodash";
+import * as flat from "flat";
 import { loadModuleData } from "../utils";
 import StatusBar from "./StatusBar";
 import { Log } from "../utils/Log";
@@ -15,11 +16,17 @@ import { localeTraverse } from "./Parser";
 
 interface IExtensionConfig {
   supportLocales: string[];
+  hookMatch: string;
+  localePath: string;
+  varKeyMatch: string[]
   [key: string]: any;
 }
 const configFileName = "sl-i18n-setting.json";
 const defaultSetting = {
   supportLocales: ["zh-CN", "en-US"],
+  hookMatch: "useI18n",
+  localePath: "/src/**/locales/**/{locale}.ts",
+  varKeyMatch: ['t'],
 } as IExtensionConfig;
 
 export class Global {
@@ -54,6 +61,12 @@ export class Global {
     );
     context.subscriptions.push(
       workspace.onDidCloseTextDocument((e) => this.updateRootPath())
+    );
+    /**
+     * 监听保存文件时重新获取字段值
+     */
+    context.subscriptions.push(
+      workspace.onDidSaveTextDocument((text) => localeTraverse(text.getText()))
     );
     await this.updateRootPath();
     const enable = await this.loadConfig();
@@ -96,7 +109,11 @@ export class Global {
   private static async readLocalesFiles() {
     Log.info(`正在搜索所有语言文件路径....`);
     let localesFiles = glob.sync(
-      `/src/**/locales/**/${Global.currentLocale}.ts`,
+      _.replace(
+        Global.extensionConfig?.localePath ?? '',
+        "{locale}",
+        Global.currentLocale
+      ),
       {
         root: path.resolve(Global._rootPath),
       }
@@ -114,7 +131,7 @@ export class Global {
       {}
     );
     Log.info(`加载语言文件完毕....`);
-    this.localeData = allLocaleData;
+    this.localeData = flat(allLocaleData);
   }
 
   private static async loadConfig() {
@@ -129,7 +146,7 @@ export class Global {
     try {
       const raw = await fe.readFile(filepath);
       const data = JSON.parse(raw?.toString());
-      this.extensionConfig = data;
+      this.extensionConfig = _.assign(defaultSetting, data);
     } catch (err) {
       Log.info(`⚠ Error on parsing package file "${configFileName}"`);
       this.extensionConfig = defaultSetting;
