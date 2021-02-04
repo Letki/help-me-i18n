@@ -1,20 +1,17 @@
-import * as path from "path";
-import * as child_process from "child_process";
-import { Log } from "../utils/Log";
+import * as path from 'path';
+import * as child_process from 'child_process';
+import { Log } from '../utils/Log';
 
-export const loadModuleData = async (
-  filePath: string,
-  extensionPath: string
-) => {
+export const loadModuleData = async (filePath: string, extensionPath: string) => {
   const compilerOptions = {
-    module: "commonjs",
+    module: 'commonjs',
     removeComments: true,
     strict: false,
     importHelpers: false,
     allowJs: true,
   };
-  const loader = path.resolve(extensionPath!, "assets/loader.js");
-  const tsNode = path.resolve(extensionPath!, "assets/ts-node/dist/bin.js");
+  const loader = path.resolve(extensionPath!, 'assets/loader.js');
+  const tsNode = path.resolve(extensionPath!, 'assets/ts-node/dist/bin.js');
   const options = JSON.stringify(compilerOptions).replace(/"/g, '\\"');
   return new Promise<any>((resolve, reject) => {
     const cmd = `node "${tsNode}" --transpile-only --compiler-options "${options}" "${loader}" "${filePath}"`;
@@ -29,4 +26,3 @@ export const loadModuleData = async (
     });
   });
 };
-

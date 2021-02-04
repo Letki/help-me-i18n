@@ -1,5 +1,5 @@
-import { OutputChannel, window } from "vscode";
-import { EXT_NAME } from "../constants";
+import { OutputChannel, window } from 'vscode';
+import { EXT_NAME } from '../constants';
 
 export class Log {
   private static _channel: OutputChannel;
@@ -10,11 +10,11 @@ export class Log {
   }
 
   static raw(...values: any[]) {
-    this.outputChannel.appendLine(values.map((i) => i.toString()).join(" "));
+    this.outputChannel.appendLine(values.map((i) => i.toString()).join(' '));
   }
 
   static info(message: string, intend = 0) {
-    this.outputChannel.appendLine(`${"\t".repeat(intend)}${message}`);
+    this.outputChannel.appendLine(`${'\t'.repeat(intend)}${message}`);
   }
 
   static warn(message: string, prompt = false, intend = 0) {
@@ -27,6 +27,6 @@ export class Log {
   }
 
   static divider() {
-    this.outputChannel.appendLine("\n――――――\n");
+    this.outputChannel.appendLine('\n――――――\n');
   }
 }

@@ -1,122 +1,123 @@
 {
-	"name": "help-me-i18n",
-	"displayName": "HELP ME I18n",
-	"description": "多语言插件",
-	"version": "0.0.1",
-	"publisher": "Letki",
-	"engines": {
-		"vscode": "^1.52.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onLanguage:javascript",
-		"onLanguage:javascriptreact",
-		"onLanguage:typescript",
-		"onLanguage:typescriptreact"
-	],
-	"main": "./dist/extension.js",
-	"contributes": {
-		"viewsContainers": {
-			"activitybar": [
-				{
-					"id": "sl-i18n",
-					"title": "sl-i18n",
-					"icon": "assets/logo.png"
-				}
-			]
-		},
-		"configuration": {
-			"type": "object",
-			"title": "easy-i18n的配置",
-			"properties": {
-				"help-me-i18n.enable": {
-					"type": "boolean",
-					"default": false,
-					"markdownDescription": "设置easy-i18n启用和关闭, 默认为关闭"
-				},
-				"help-me-i18n.supportLocales": {
-					"type": [
-						"array"
-					],
-					"default": [
-						"zh-CN",
-						"en-US"
-					],
-					"markdownDescription": "支持的语言列表"
-				},
-				"help-me-i18n.hookMatch": {
-					"type": [
-						"array"
-					],
-					"default": [
-						"useI18n, useTranslation",
-						"useIntl"
-					],
-					"markdownDescription": "代码中多语言使用hook的名字"
-				},
-				"help-me-i18n.varKeyMatch": {
-					"type": [
-						"array"
-					],
-					"default": [
-						"t"
-					],
-					"markdownDescription": "如果honk导出是个对象, 这个是设置导出使用的值"
-				},
-				"help-me-i18n.localePath": {
-					"type": [
-						"string",
-						"array"
-					],
-					"default": "/src/**/locales/**/{locale}.ts",
-					"markdownDescription": "语言资源的路径, **{locale}占位符必须保留**,locale表示当前显示哪种语言, 会自动根据语言环境传入"
-				}
-			}
-		}
-	},
-	"icon": "assets/logo.png",
-	"scripts": {
-		"vscode:prepublish": "yarn run package",
-		"compile": "webpack --config ./build/node-extension.webpack.config.js",
-		"watch": "webpack --watch --config ./build/node-extension.webpack.config.js",
-		"package": "webpack --mode production --devtool hidden-source-map --config ./build/node-extension.webpack.config.js",
-		"test-compile": "tsc -p ./",
-		"test-watch": "tsc -watch -p ./",
-		"pretest": "yarn run test-compile && yarn run lint",
-		"lint": "eslint src --ext ts",
-		"test": "node ./out/test/runTest.js"
-	},
-	"devDependencies": {
-		"@types/babel__traverse": "^7.11.0",
-		"@types/flat": "^5.0.1",
-		"@types/fs-extra": "^9.0.6",
-		"@types/glob": "^7.1.3",
-		"@types/lodash": "^4.14.168",
-		"@types/mocha": "^8.0.4",
-		"@types/node": "^12.11.7",
-		"@types/vscode": "^1.52.0",
-		"@typescript-eslint/eslint-plugin": "^4.9.0",
-		"@typescript-eslint/parser": "^4.9.0",
-		"eslint": "^7.15.0",
-		"glob": "^7.1.6",
-		"mocha": "^8.1.3",
-		"node-loader": "^1.0.2",
-		"ts-loader": "^8.0.11",
-		"typescript": "^4.1.2",
-		"vscode-test": "^1.4.1",
-		"webpack": "^5.10.0",
-		"webpack-cli": "^4.2.0"
-	},
-	"dependencies": {
-		"@babel/parser": "^7.12.11",
-		"@babel/traverse": "^7.12.12",
-		"chokidar": "^3.5.1",
-		"eval": "^0.1.4",
-		"flat": "^5.0.2",
-		"fs-extra": "^9.1.0",
-		"lodash": "^4.17.20",
-		"ts-node": "^9.1.1"
-	}
+  "name": "help-me-i18n",
+  "displayName": "HELP ME I18n",
+  "description": "多语言插件",
+  "version": "0.0.1",
+  "publisher": "Letki",
+  "engines": {
+    "vscode": "^1.52.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "help-me-i18n",
+          "title": "Help Me I18n",
+          "icon": "assets/logo.png"
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Help Me I18n的配置",
+      "properties": {
+        "help-me-i18n.enable": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "设置Help Me I18n启用和关闭, 默认为关闭"
+        },
+        "help-me-i18n.supportLocales": {
+          "type": [
+            "array"
+          ],
+          "default": [
+            "zh-CN",
+            "en-US"
+          ],
+          "markdownDescription": "支持的语言列表"
+        },
+        "help-me-i18n.hookMatch": {
+          "type": [
+            "array"
+          ],
+          "default": [
+            "useI18n, useTranslation",
+            "useIntl"
+          ],
+          "markdownDescription": "代码中多语言使用hook的名字"
+        },
+        "help-me-i18n.varKeyMatch": {
+          "type": [
+            "array"
+          ],
+          "default": [
+            "t"
+          ],
+          "markdownDescription": "如果honk导出是个对象, 这个是设置导出使用的值"
+        },
+        "help-me-i18n.localePath": {
+          "type": [
+            "string",
+            "array"
+          ],
+          "default": "/src/**/locales/**/{locale}.ts",
+          "markdownDescription": "语言资源的路径, **{locale}占位符必须保留**,locale表示当前显示哪种语言, 会自动根据语言环境传入"
+        }
+      }
+    }
+  },
+  "icon": "assets/logo.png",
+  "scripts": {
+    "vscode:prepublish": "yarn run package",
+    "compile": "webpack --config ./build/node-extension.webpack.config.js",
+    "watch": "webpack --watch --config ./build/node-extension.webpack.config.js",
+    "package": "webpack --mode production --devtool hidden-source-map --config ./build/node-extension.webpack.config.js",
+    "test-compile": "tsc -p ./",
+    "test-watch": "tsc -watch -p ./",
+    "pretest": "yarn run test-compile && yarn run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "format": "prettier --config .prettierrc.js --write \"**/*.{js,jsx,ts,tsx,d.ts,md,json,yml,yaml}\""
+  },
+  "devDependencies": {
+    "@types/babel__traverse": "^7.11.0",
+    "@types/flat": "^5.0.1",
+    "@types/fs-extra": "^9.0.6",
+    "@types/glob": "^7.1.3",
+    "@types/lodash": "^4.14.168",
+    "@types/mocha": "^8.0.4",
+    "@types/node": "^12.11.7",
+    "@types/vscode": "^1.52.0",
+    "@typescript-eslint/eslint-plugin": "^4.9.0",
+    "@typescript-eslint/parser": "^4.9.0",
+    "eslint": "^7.15.0",
+    "glob": "^7.1.6",
+    "mocha": "^8.1.3",
+    "node-loader": "^1.0.2",
+    "prettier": "^2.2.1",
+    "ts-loader": "^8.0.11",
+    "typescript": "^4.1.2",
+    "vscode-test": "^1.4.1",
+    "webpack": "^5.10.0",
+    "webpack-cli": "^4.2.0"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.12.11",
+    "@babel/traverse": "^7.12.12",
+    "chokidar": "^3.5.1",
+    "eval": "^0.1.4",
+    "flat": "^5.0.2",
+    "fs-extra": "^9.1.0",
+    "lodash": "^4.17.20"
+  }
 }

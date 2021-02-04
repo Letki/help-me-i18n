@@ -1,12 +1,7 @@
-import {
-  ExtensionContext,
-  StatusBarAlignment,
-  StatusBarItem,
-  window,
-} from "vscode";
-import { EXT_NAME } from "../constants";
-import { COMMANDS } from "../constants/commands";
-import { Global } from "./Global";
+import { ExtensionContext, StatusBarAlignment, StatusBarItem, window } from 'vscode';
+import { EXT_NAME } from '../constants';
+import { COMMANDS } from '../constants/commands';
+import { Global } from './Global';
 
 class StatusBar {
   static barContext: StatusBarItem;

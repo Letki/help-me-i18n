@@ -1,22 +1,16 @@
-import {
-  ExtensionContext,
-  languages,
-  TextEditorDecorationType,
-  window,
-  workspace,
-} from "vscode";
-import * as glob from "glob";
-import * as path from "path";
-import * as _ from "lodash";
-import * as flat from "flat";
-import { loadModuleData } from "../utils";
-import StatusBar from "./StatusBar";
-import { Log } from "../utils/Log";
-import { localeTraverse } from "./Parser";
-import { SETTING_NAME, SUPPORT_LANGUAGE } from "../constants";
-import * as chokidar from "chokidar";
-import ProvideHover from "./ProvideHover";
-import Command from "./Command";
+import { ExtensionContext, languages, TextEditorDecorationType, window, workspace } from 'vscode';
+import * as glob from 'glob';
+import * as path from 'path';
+import * as _ from 'lodash';
+import * as flat from 'flat';
+import { loadModuleData } from '../utils';
+import StatusBar from './StatusBar';
+import { Log } from '../utils/Log';
+import { localeTraverse } from './Parser';
+import { SETTING_NAME, SUPPORT_LANGUAGE } from '../constants';
+import * as chokidar from 'chokidar';
+import ProvideHover from './ProvideHover';
+import Command from './Command';
 
 interface IExtensionConfig {
   supportLocales: string[];
@@ -26,14 +20,14 @@ interface IExtensionConfig {
   enable: boolean;
   [key: string]: any;
 }
-const configFileName = "sl-i18n-setting.json";
+const configFileName = 'sl-i18n-setting.json';
 const defaultSetting = {
   // 默认关闭
   enable: false,
-  supportLocales: ["zh-CN", "en-US"],
-  hookMatch: ["useI18n, useTranslation", "useIntl"],
-  localePath: "/src/**/locales/**/{locale}.ts",
-  varKeyMatch: ["t"],
+  supportLocales: ['zh-CN', 'en-US'],
+  hookMatch: ['useI18n, useTranslation', 'useIntl'],
+  localePath: '/src/**/locales/**/{locale}.ts',
+  varKeyMatch: ['t'],
 } as IExtensionConfig;
 
 export class Global {
@@ -68,15 +62,11 @@ export class Global {
 
   static async init(context: ExtensionContext) {
     this.context = context;
-    context.subscriptions.push(
-      workspace.onDidChangeWorkspaceFolders((e) => this.updateRootPath())
-    );
+    context.subscriptions.push(workspace.onDidChangeWorkspaceFolders((e) => this.updateRootPath()));
     /**
      * 监听保存文件时重新获取字段值
      */
-    context.subscriptions.push(
-      workspace.onDidSaveTextDocument((text) => localeTraverse(text.getText()))
-    );
+    context.subscriptions.push(workspace.onDidSaveTextDocument((text) => localeTraverse(text.getText())));
     await this.updateRootPath();
     const enable = await this.loadConfig();
     if (enable) {
@@ -100,7 +90,7 @@ export class Global {
               localeTraverse(documentText);
             }
           }
-        })
+        }),
       );
     }
   }
@@ -110,17 +100,12 @@ export class Global {
    */
   private static async updateRootPath() {
     const editor = window.activeTextEditor;
-    let rootPath = "";
+    let rootPath = '';
 
-    if (
-      !editor ||
-      !workspace.workspaceFolders ||
-      workspace.workspaceFolders.length === 0
-    )
-      return;
+    if (!editor || !workspace.workspaceFolders || workspace.workspaceFolders.length === 0) return;
 
     const resource = editor?.document.uri;
-    if (resource?.scheme === "file") {
+    if (resource?.scheme === 'file') {
       const folder = workspace.getWorkspaceFolder(resource);
       if (folder) {
         rootPath = folder.uri.fsPath;
@@ -142,25 +127,15 @@ export class Global {
     let localesFiles = [] as string[];
     if (Array.isArray(extensionConfig?.localePath)) {
       extensionConfig?.localePath.forEach((localeFilePath) => {
-        const list = glob.sync(
-          _.replace(localeFilePath ?? "", "{locale}", Global.currentLocale),
-          {
-            root: path.resolve(Global._rootPath),
-          }
-        );
+        const list = glob.sync(_.replace(localeFilePath ?? '', '{locale}', Global.currentLocale), {
+          root: path.resolve(Global._rootPath),
+        });
         localesFiles = localesFiles.concat(list);
       });
     } else {
-      localesFiles = glob.sync(
-        _.replace(
-          extensionConfig?.localePath ?? "",
-          "{locale}",
-          Global.currentLocale
-        ),
-        {
-          root: path.resolve(Global._rootPath),
-        }
-      );
+      localesFiles = glob.sync(_.replace(extensionConfig?.localePath ?? '', '{locale}', Global.currentLocale), {
+        root: path.resolve(Global._rootPath),
+      });
     }
     Log.info(`搜索完成, 正在加载所有语言文件....`);
     const promises = localesFiles.map((filePath: string) => {
@@ -174,7 +149,7 @@ export class Global {
         localePathMapping[localesFiles[index]] = flat(curr);
         return _.assign(all, curr);
       },
-      {}
+      {},
     );
     Log.info(`加载语言文件完毕....`);
     this.localeData = flat(allLocaleData);
@@ -189,9 +164,7 @@ export class Global {
   private static async loadConfig() {
     const config = {} as IExtensionConfig;
     Object.keys(defaultSetting).forEach((key) => {
-      config[key] =
-        workspace.getConfiguration(SETTING_NAME).get(key) ??
-        defaultSetting[key];
+      config[key] = workspace.getConfiguration(SETTING_NAME).get(key) ?? defaultSetting[key];
     });
     this.extensionConfig = config;
     return config.enable;
@@ -205,10 +178,7 @@ export class Global {
       return this.currentLocale;
     }
     // 默认取第一个
-    return (
-      this.extensionConfig?.supportLocales?.[0] ??
-      defaultSetting.supportLocales?.[0]
-    );
+    return this.extensionConfig?.supportLocales?.[0] ?? defaultSetting.supportLocales?.[0];
   }
 
   /**
@@ -224,15 +194,9 @@ export class Global {
       let newData = await loadModuleData(path, this.context.extensionPath);
       newData = flat(newData);
       // 把该路径的数据先与原来的数据assin
-      const assignData = _.assign(
-        {} as any,
-        this.localePathMapping[path],
-        newData
-      );
+      const assignData = _.assign({} as any, this.localePathMapping[path], newData);
       // 与原来该路径的数据比较 检查是否有删除的
-      const removeKey = Object.keys(this.localePathMapping[path]).filter(
-        (key) => newData[key] === undefined
-      );
+      const removeKey = Object.keys(this.localePathMapping[path]).filter((key) => newData[key] === undefined);
       removeKey.forEach((rmKey) => {
         assignData[rmKey] = undefined;
       });
@@ -242,7 +206,7 @@ export class Global {
       if (window.activeTextEditor?.document.uri.path === path) return;
       this.transformActiveEditor();
     }, 300);
-    watcher.on("change", changeCallback);
+    watcher.on('change', changeCallback);
     this.fileWatchContext = watcher;
   }
 
@@ -262,8 +226,7 @@ export class Global {
       const {
         document: { languageId },
       } = window.activeTextEditor;
-      SUPPORT_LANGUAGE.indexOf(languageId) &&
-      localeTraverse(window.activeTextEditor.document.getText());
+      SUPPORT_LANGUAGE.indexOf(languageId) && localeTraverse(window.activeTextEditor.document.getText());
     }
   }
 }
