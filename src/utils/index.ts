@@ -14,9 +14,10 @@ export const loadModuleData = async (
     allowJs: true,
   };
   const loader = path.resolve(extensionPath!, "assets/loader.js");
+  const tsNode = path.resolve(extensionPath!, "assets/ts-node/dist/bin.js");
   const options = JSON.stringify(compilerOptions).replace(/"/g, '\\"');
   return new Promise<any>((resolve, reject) => {
-    const cmd = `ts-node --transpile-only --compiler-options "${options}" "${loader}" "${filePath}"`;
+    const cmd = `node "${tsNode}" --transpile-only --compiler-options "${options}" "${loader}" "${filePath}"`;
     // console.log(`[i18n-ally] spawn: ${cmd}`);
     child_process.exec(cmd, (err, stdout) => {
       if (err) return reject(err);

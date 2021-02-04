@@ -3,6 +3,7 @@ import traverse from "@babel/traverse";
 import { NodePath } from "@babel/traverse";
 import { DecorationOptions, Position, Range, window, workspace } from "vscode";
 import { VariableDeclaration } from "../../node_modules/@babel/types/lib/index";
+import { normalDecorationType, warningDecorationType } from "../constants";
 import { Log } from "../utils/Log";
 import { Global } from "./Global";
 
@@ -108,9 +109,10 @@ export const localeTraverse = (documentText: string) => {
   try {
     ast = transformCode2Ast(documentText);
   } catch (error) {
-    Log.info(error)
+    Log.info(error);
   }
-  const keyRange: DecorationOptions[] = [];
+  const normalKeyRange: DecorationOptions[] = [];
+  const warningKeyRange: DecorationOptions[] = [];
 
   const setDecorationsKey = (
     localeDataKey: string,
@@ -119,17 +121,29 @@ export const localeTraverse = (documentText: string) => {
       column?: number;
     }
   ) => {
-    keyRange.push({
-      renderOptions: {
-        after: {
-          contentText: `${Global.localeData[localeDataKey]}`,
+    const range = new Range(
+      new Position((option.line ?? 1) - 1, (option.column ?? 1) - 1),
+      new Position((option.line ?? 1) - 1, (option.column ?? 1) - 1)
+    );
+    if (typeof Global.localeData[localeDataKey] !== 'undefined') {
+      normalKeyRange.push({
+        renderOptions: {
+          after: {
+            contentText: `${Global.localeData[localeDataKey]}`,
+          },
         },
-      },
-      range: new Range(
-        new Position((option.line ?? 1) - 1, (option.column ?? 1) - 1),
-        new Position((option.line ?? 1) - 1, (option.column ?? 1) - 1)
-      ),
-    });
+        range,
+      });
+    } else {
+      warningKeyRange.push({
+        renderOptions: {
+          after: {
+            contentText: `oh!!!!发现未配置字段!!!!`,
+          },
+        },
+        range,
+      });
+    }
   };
   traverse(ast, {
     VariableDeclaration(path) {
@@ -160,8 +174,6 @@ export const localeTraverse = (documentText: string) => {
       }
     },
   });
-  window.activeTextEditor?.setDecorations(
-    Global.disappearDecorationType,
-    keyRange
-  );
+  window.activeTextEditor?.setDecorations(normalDecorationType, normalKeyRange);
+  window.activeTextEditor?.setDecorations(warningDecorationType, warningKeyRange);
 };

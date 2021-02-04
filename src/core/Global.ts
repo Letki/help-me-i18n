@@ -7,16 +7,16 @@ import {
 } from "vscode";
 import * as glob from "glob";
 import * as path from "path";
-import * as fe from "fs-extra";
 import * as _ from "lodash";
 import * as flat from "flat";
 import { loadModuleData } from "../utils";
 import StatusBar from "./StatusBar";
 import { Log } from "../utils/Log";
 import { localeTraverse } from "./Parser";
-import { EXT_NAME, SETTING_NAME } from "../constants";
+import { SETTING_NAME, SUPPORT_LANGUAGE } from "../constants";
 import * as chokidar from "chokidar";
 import ProvideHover from "./ProvideHover";
+import Command from "./Command";
 
 interface IExtensionConfig {
   supportLocales: string[];
@@ -53,7 +53,11 @@ export class Global {
    * 当前选择的语言
    */
   static currentLocale: string;
-  static disappearDecorationType: TextEditorDecorationType;
+
+  /**
+   * 文件监听上下文 用于删除监听
+   */
+  static fileWatchContext: chokidar.FSWatcher | undefined;
 
   static async init(context: ExtensionContext) {
     this.context = context;
@@ -70,24 +74,33 @@ export class Global {
     const enable = await this.loadConfig();
     if (enable) {
       this.currentLocale = this.initCurrentLocale();
+      Command.init();
       StatusBar.init();
       await this.readLocalesFiles();
-      this.initDecorationType();
       // 对当前的编辑器进行i8n转换
       this.transformActiveEditor();
       ProvideHover.init(context);
 
       context.subscriptions.push(
         window.onDidChangeActiveTextEditor((editor) => {
-          const documentText = editor?.document.getText();
-          if (documentText) {
-            localeTraverse(documentText);
+          if (
+            editor?.document.languageId &&
+            // 支持的语言才进行解析
+            SUPPORT_LANGUAGE.includes(editor?.document.languageId)
+          ) {
+            const documentText = editor?.document.getText();
+            if (documentText) {
+              localeTraverse(documentText);
+            }
           }
         })
       );
     }
   }
 
+  /**
+   * 更新跟路径
+   */
   private static async updateRootPath() {
     const editor = window.activeTextEditor;
     let rootPath = "";
@@ -113,7 +126,10 @@ export class Global {
     }
   }
 
-  private static async readLocalesFiles() {
+  /**
+   * 读取语言源文件
+   */
+  static async readLocalesFiles() {
     const { extensionConfig } = Global;
     Log.info(`正在搜索所有语言文件路径....`);
     let localesFiles = [] as string[];
@@ -154,6 +170,8 @@ export class Global {
     Log.info(`加载语言文件完毕....`);
     this.localeData = flat(allLocaleData);
     Log.info(`开始监听语言文件变化....`);
+    //
+
     // 开始监听语言文件变化
     this.watchFile(localesFiles);
   }
@@ -162,7 +180,8 @@ export class Global {
     const config = {} as IExtensionConfig;
     Object.keys(defaultSetting).forEach((key) => {
       config[key] =
-        workspace.getConfiguration(SETTING_NAME).get(key) ?? defaultSetting[key];
+        workspace.getConfiguration(SETTING_NAME).get(key) ??
+        defaultSetting[key];
     });
     this.extensionConfig = config;
     return config.enable;
@@ -171,27 +190,23 @@ export class Global {
    * 初始化选择显示的语言
    */
   private static initCurrentLocale() {
-    if (this.extensionConfig) {
-      // 默认取第一个
-      return this.extensionConfig.supportLocales?.[0];
+    if (this.extensionConfig && this.currentLocale) {
+      // 当前选中有值直接返回
+      return this.currentLocale;
     }
-    return defaultSetting.supportLocales?.[0];
+    // 默认取第一个
+    return (
+      this.extensionConfig?.supportLocales?.[0] ??
+      defaultSetting.supportLocales?.[0]
+    );
   }
 
-  private static initDecorationType() {
-    const disappearDecorationType = window.createTextEditorDecorationType({
-      textDecoration: "", // a hack to inject custom style
-      after: {
-        backgroundColor: "#434343",
-        color: "#C0C4CC",
-        border: "0.2px solid #bfbfbf",
-        margin: "0 0 0 6px",
-      },
-    });
-    this.disappearDecorationType = disappearDecorationType;
-  }
-
+  /**
+   * 监听文件更改
+   * @param filePath
+   */
   static watchFile(filePath: string | string[]) {
+    this.removeAllFileWatch();
     const watcher = chokidar.watch(filePath);
     const changeCallback = _.debounce(async (path) => {
       Log.info(`Locale File ${path} has been changed`);
@@ -203,6 +218,15 @@ export class Global {
       this.transformActiveEditor();
     }, 300);
     watcher.on("change", changeCallback);
+    this.fileWatchContext = watcher;
+  }
+
+  /**
+   * 移除所有文件监听
+   * @param filePath
+   */
+  static removeAllFileWatch() {
+    this.fileWatchContext?.removeAllListeners();
   }
 
   /**
@@ -212,4 +236,5 @@ export class Global {
     window.activeTextEditor?.document.getText() &&
       localeTraverse(window.activeTextEditor?.document.getText());
   }
+
 }
