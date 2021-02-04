@@ -16,6 +16,7 @@ class Command {
           : currentSelect + 1;
       Global.currentLocale = supportLocales[currentSelect] ?? supportLocales[0];
       await Global.readLocalesFiles();
+      Global.transformActiveEditor();
       StatusBar.barContext.text = `${EXT_NAME}: ${Global.currentLocale}`;
       StatusBar.barContext.show();
     });
