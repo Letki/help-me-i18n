@@ -59,6 +59,13 @@ export class Global {
    */
   static fileWatchContext: chokidar.FSWatcher | undefined;
 
+  /**
+   * 路径为key的语言数据表 区别于localeData
+   */
+  static localePathMapping: {
+    [key: string]: string;
+  };
+
   static async init(context: ExtensionContext) {
     this.context = context;
     context.subscriptions.push(
@@ -160,15 +167,18 @@ export class Global {
       return loadModuleData(filePath, this.context.extensionPath);
     });
     const rst = await Promise.all(promises);
+    const localePathMapping = {} as any;
     const allLocaleData = _.reduce(
       rst,
-      (all, curr) => {
+      (all, curr, index) => {
+        localePathMapping[localesFiles[index]] = flat(curr);
         return _.assign(all, curr);
       },
       {}
     );
     Log.info(`加载语言文件完毕....`);
     this.localeData = flat(allLocaleData);
+    this.localePathMapping = localePathMapping;
     Log.info(`开始监听语言文件变化....`);
     //
 
@@ -211,8 +221,23 @@ export class Global {
     const changeCallback = _.debounce(async (path) => {
       Log.info(`Locale File ${path} has been changed`);
       // 读取文件重新塞回去
-      const newData = await loadModuleData(path, this.context.extensionPath);
-      this.localeData = _.assign(this.localeData, flat(newData));
+      let newData = await loadModuleData(path, this.context.extensionPath);
+      newData = flat(newData);
+      // 把该路径的数据先与原来的数据assin
+      const assignData = _.assign(
+        {} as any,
+        this.localePathMapping[path],
+        newData
+      );
+      // 与原来该路径的数据比较 检查是否有删除的
+      const removeKey = Object.keys(this.localePathMapping[path]).filter(
+        (key) => newData[key] === undefined
+      );
+      removeKey.forEach((rmKey) => {
+        assignData[rmKey] = undefined;
+      });
+      this.localePathMapping[path] = assignData;
+      this.localeData = _.assign({}, this.localeData, assignData);
       // 触发当前活动编辑器重新检查
       if (window.activeTextEditor?.document.uri.path === path) return;
       this.transformActiveEditor();
@@ -233,8 +258,12 @@ export class Global {
    * 对当前的编辑器进行i8n转换
    */
   static transformActiveEditor() {
-    window.activeTextEditor?.document.getText() &&
-      localeTraverse(window.activeTextEditor?.document.getText());
+    if (window.activeTextEditor) {
+      const {
+        document: { languageId },
+      } = window.activeTextEditor;
+      SUPPORT_LANGUAGE.indexOf(languageId) &&
+      localeTraverse(window.activeTextEditor.document.getText());
+    }
   }
-
 }

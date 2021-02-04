@@ -16,9 +16,9 @@ export const normalDecorationType = window.createTextEditorDecorationType({
 export const warningDecorationType = window.createTextEditorDecorationType({
     textDecoration: "", // a hack to inject custom style
     after: {
-      backgroundColor: "red",
+      backgroundColor: "#ff4d4f",
       color: "#ffffff",
-      border: "0.2px solid #bfbfbf",
+      border: "0.2px solid #FE9E0F",
       margin: "0 0 0 6px",
     },
   });
