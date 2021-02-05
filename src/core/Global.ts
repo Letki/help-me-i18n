@@ -59,6 +59,10 @@ export class Global {
   static localePathMapping: {
     [key: string]: string;
   };
+  /**
+   * 加载语言资源文件loading
+   */
+  static localeLoading: boolean = false;
 
   static async init(context: ExtensionContext) {
     this.context = context;
@@ -124,6 +128,7 @@ export class Global {
   static async readLocalesFiles() {
     const { extensionConfig } = Global;
     Log.info(`正在搜索所有语言文件路径....`);
+    this.localeLoading = true;
     let localesFiles = [] as string[];
     if (Array.isArray(extensionConfig?.localePath)) {
       extensionConfig?.localePath.forEach((localeFilePath) => {
@@ -151,6 +156,7 @@ export class Global {
       },
       {},
     );
+    this.localeLoading = false;
     Log.info(`加载语言文件完毕....`);
     this.localeData = flat(allLocaleData);
     this.localePathMapping = localePathMapping;

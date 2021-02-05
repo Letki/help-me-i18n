@@ -11,7 +11,10 @@ class Command {
     commands.registerCommand(
       COMMANDS.switchLocale,
       _.debounce(async () => {
+        if (Global.localeLoading) return;
         Log.info(`切换语言中`);
+        StatusBar.barContext.text = `$(loading~spin)${EXT_NAME}: ${Global.currentLocale}`;
+        StatusBar.barContext.show();
         const { extensionConfig, currentLocale } = Global;
         const { supportLocales = [] } = extensionConfig ?? {};
         let currentSelect = supportLocales.indexOf(currentLocale);
@@ -23,7 +26,7 @@ class Command {
         await Global.readLocalesFiles();
         Log.info(`切换语言完成`);
         Global.transformActiveEditor();
-        StatusBar.barContext.text = `${EXT_NAME}: ${Global.currentLocale}`;
+        StatusBar.barContext.text = `$(notebook-state-success)${EXT_NAME}: ${Global.currentLocale}`;
         StatusBar.barContext.show();
       }, 200),
     );
