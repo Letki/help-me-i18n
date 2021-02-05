@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as child_process from 'child_process';
 import { Log } from '../utils/Log';
-import { cwd } from 'process';
 
 export const loadModuleData = async (filePath: string, extensionPath: string) => {
   const compilerOptions = {
@@ -19,12 +18,13 @@ export const loadModuleData = async (filePath: string, extensionPath: string) =>
     // console.log(`[i18n-ally] spawn: ${cmd}`);
     child_process.exec(cmd, (err, stdout) => {
       if (err) {
-        Log.info(err.message)
-        return reject(err)};
+        Log.info(err.message);
+        return reject(err);
+      }
       try {
         resolve(JSON.parse(stdout.trim()));
       } catch (e) {
-        Log.info(e.message)
+        Log.info(e.message);
         reject(e);
       }
     });

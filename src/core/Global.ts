@@ -23,7 +23,7 @@ interface IExtensionConfig {
 const configFileName = 'sl-i18n-setting.json';
 const defaultSetting = {
   // 默认关闭
-  enable: false,
+  enable: true,
   supportLocales: ['zh-CN', 'en-US'],
   hookMatch: ['useI18n, useTranslation', 'useIntl'],
   localePath: '/src/**/locales/**/{locale}.ts',
@@ -170,9 +170,10 @@ export class Global {
   private static async loadConfig() {
     const config = {} as IExtensionConfig;
     Object.keys(defaultSetting).forEach((key) => {
-      config[key] = workspace.getConfiguration(SETTING_NAME).get(key) ?? defaultSetting[key];
+      config[key] = workspace.getConfiguration(SETTING_NAME, window.activeTextEditor?.document).get(key) ?? defaultSetting[key];
     });
     this.extensionConfig = config;
+    Log.info(JSON.stringify(config));
     return config.enable;
   }
   /**

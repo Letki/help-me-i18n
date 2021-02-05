@@ -34,7 +34,7 @@
       "properties": {
         "help-me-i18n.enable": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "markdownDescription": "设置Help Me I18n启用和关闭, 默认为关闭"
         },
         "help-me-i18n.supportLocales": {
