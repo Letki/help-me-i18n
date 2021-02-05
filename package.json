@@ -2,7 +2,7 @@
   "name": "help-me-i18n",
   "displayName": "HELP ME I18n",
   "description": "多语言插件",
-  "version": "0.0.1",
+  "version": "0.0.2-beta1",
   "publisher": "Letki",
   "engines": {
     "vscode": "^1.52.0"
