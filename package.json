@@ -7,6 +7,7 @@
   "engines": {
     "vscode": "^1.52.0"
   },
+  "repository": "https://github.com/Letki/help-me-i18n",
   "categories": [
     "Other"
   ],
