@@ -1,42 +1,35 @@
-import * as ts from "typescript";
-import * as path from "path";
-import { tsquery } from "@phenomnomnominal/tsquery";
+import esquery from "esquery";
+import {
+  Node,
+  VariableDeclarator,
+  Expression,
+  SimpleLiteral,
+  Identifier,
+  CallExpression,
+} from "estree";
 import { Global } from "./Global";
 import { Position, Range } from "vscode-languageserver/node";
 import { trimQuotation } from "../utils";
 import { Ast } from "./Ast";
-
-const getScriptKind = (filename: string) => {
-  const ext = path.extname(filename);
-  switch (ext) {
-    case ".ts":
-      return ts.ScriptKind.TS;
-    case ".tsx":
-      return ts.ScriptKind.TSX;
-    case ".jsx":
-      return ts.ScriptKind.JSX;
-    default:
-      return ts.ScriptKind.JS;
-  }
-};
 class I18n {
   public readonly prefixKey: string;
   public readonly variableId: string;
-  private allCallee: ts.Node[];
-  private sourceCode: ts.SourceFile;
+  private allCallee: CallExpression[];
+  private sourceCode: Node;
 
-  constructor(i18nHookCallee: ts.Node, sourceCode: ts.SourceFile) {
-    const variableId = tsquery(i18nHookCallee.parent.parent, "Identifier");
-    const prefixKey = tsquery(i18nHookCallee.parent, "StringLiteral");
-    this.prefixKey = trimQuotation(prefixKey[0]?.getFullText());
-    // console.log('prefixKey');
-    // console.log(this.prefixKey);
-    this.variableId = trimQuotation(variableId[0]?.getFullText());
+  constructor(i18nHookCallee: VariableDeclarator, sourceCode: Node) {
+    const variableId = esquery(i18nHookCallee.id, "Identifier") as Identifier[];
+    const prefixKey = esquery(
+      i18nHookCallee.init as Expression,
+      "StringLiteral"
+    ) as SimpleLiteral[];
+    this.prefixKey = (prefixKey[0]?.value as string) ?? "";
+    this.variableId = trimQuotation(variableId[0]?.name);
     // 查找所有i18n调用
-    const allCallee = tsquery(
+    const allCallee = esquery(
       sourceCode,
-      `CallExpression > Identifier[name=${this.variableId}]`
-    );
+      `CallExpression:has( Identifier[name=${this.variableId}])`
+    ) as CallExpression[];
     this.allCallee = allCallee;
     this.sourceCode = sourceCode;
   }
@@ -79,18 +72,17 @@ class I18n {
       }
     };
     this.allCallee.forEach((item) => {
-      const suffixKeyNode = tsquery(item.parent, "StringLiteral")?.[0];
-      const suffixKey = trimQuotation(suffixKeyNode?.getText());
-      const { line, character } = this.sourceCode.getLineAndCharacterOfPosition(
-        suffixKeyNode?.getEnd()
-      );
-      // console.log(line);
-      // console.log(character);
+      const suffixKeyNode = esquery(
+        item,
+        "StringLiteral"
+      )?.[0] as SimpleLiteral;
+      const suffixKey = suffixKeyNode?.value;
+      const { end = 0 } = suffixKeyNode.loc ?? ({} as any);
       setDecorationsKey(
         `${this.prefixKey ? `${this.prefixKey}.` : ""}${suffixKey}`,
         {
-          line,
-          column: character,
+          line: end.line - 1,
+          column: end.column - 1,
         }
       );
       // console.log(
@@ -104,12 +96,12 @@ export class I18nAst extends Ast {
   public readonly i18nList: I18n[];
   constructor(filename: string, code: string) {
     super(filename, code);
-    const i18nHookCallee = tsquery(
+    const i18nHookCallee = esquery(
       this.ast,
-      'VariableDeclaration > CallExpression > Identifier[name="useI18n"]'
+      'VariableDeclarator:has( CallExpression > Identifier[name="useI18n"])'
     );
     this.i18nList = i18nHookCallee.map((calleeItem) => {
-      const i18n = new I18n(calleeItem, this.ast);
+      const i18n = new I18n(calleeItem as VariableDeclarator, this.ast);
       return i18n;
     });
   }

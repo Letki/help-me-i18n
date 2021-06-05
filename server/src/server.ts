@@ -21,7 +21,7 @@ import { Ast } from "./core/Ast";
 import { defaultSettings, Global, IExtensionConfig } from "./core/Global";
 import { SETTING_NAME } from "./constants";
 import { I18nAst } from "./core/I18nAst";
-import { tsquery } from "@phenomnomnominal/tsquery";
+import esquery from "esquery";
 import { replacePrefix } from './utils';
 
 // Create a connection for the server, using Node's IPC as a transport.
@@ -150,11 +150,11 @@ connection.onNotification(
     if (lineText) {
       console.log("params.lineText");
       const lineAst = new Ast("", lineText);
-      let rst = tsquery(
+      let rst = esquery(
         lineAst.ast,
         `CallExpression > Identifier[name="${ast.i18nList[0]?.variableId}"]`
       );
-      rst = tsquery(lineAst.ast, `StringLiteral`);
+      rst = esquery(lineAst.ast, `StringLiteral`);
       if (rst.length !== 0) {
         connection.onCompletion(
           async (_textDocumentPosition: TextDocumentPositionParams) => {

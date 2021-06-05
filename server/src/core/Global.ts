@@ -1,8 +1,8 @@
-import * as chokidar from 'chokidar';
-import * as path from 'path';
+import chokidar from 'chokidar';
+import path from 'path';
 import { InitializeParams, _Connection } from 'vscode-languageserver/node';
-import * as glob from 'glob';
-import * as _ from 'lodash';
+import glob from 'glob';
+import _ from 'lodash';
 import flat from 'flat';
 import { loadModuleData } from '../utils';
 
