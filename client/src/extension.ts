@@ -4,7 +4,14 @@
  * ------------------------------------------------------------------------------------------ */
 
 import * as path from "path";
-import { workspace, ExtensionContext, window, languages } from "vscode";
+import {
+  workspace,
+  ExtensionContext,
+  window,
+  commands,
+  QuickPickItem,
+  Selection,
+} from "vscode";
 
 import {
   LanguageClient,
@@ -64,6 +71,10 @@ export function activate(context: ExtensionContext) {
     clientOptions
   );
 
+  const rangeMap = new Map<
+    string,
+    { normalKeyRange: any[]; warningKeyRange: any[] }[]
+  >();
   // Start the client. This will also launch the server
   client.start();
   client.onReady().then(() => {
@@ -85,6 +96,7 @@ export function activate(context: ExtensionContext) {
             warningKeyRange
           );
         });
+        rangeMap.set(window.activeTextEditor.document.uri.path, params.range);
       }
     });
     client.onNotification("i18n/getCurrentDocumentText", (params) => {
@@ -134,6 +146,43 @@ export function activate(context: ExtensionContext) {
             version: version,
             code: documentText,
           });
+        }
+      }
+    })
+  );
+
+  // 注册搜索命令
+  context.subscriptions.push(
+    commands.registerCommand("extension.i18n.find", async () => {
+      const currentDoc = window.activeTextEditor.document.uri.path;
+      const currentRangeData = rangeMap.get(currentDoc);
+      if (currentRangeData) {
+        let i18nKey: ({ optionData: any } & QuickPickItem)[] = [];
+
+        currentRangeData.forEach(({ normalKeyRange }) => {
+          i18nKey = i18nKey.concat(
+            normalKeyRange.map((item) => {
+              const { key, value } = item.data;
+              // return `${key}: ${value}`;
+              return {
+                label: key,
+                description: value,
+                optionData: item,
+              };
+            })
+          );
+        });
+        const { optionData } =
+          (await window.showQuickPick(i18nKey, {
+            title: "查找当前文档i18n内容",
+            matchOnDescription: true,
+          })) ?? {};
+        if (optionData) {
+          const lineNumber = optionData.range.start.line;
+          const editor = window.activeTextEditor;
+          const range = editor.document.lineAt(lineNumber).range;
+          editor.selection = new Selection(range.start, range.end);
+          editor.revealRange(range);
         }
       }
     })

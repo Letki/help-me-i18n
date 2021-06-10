@@ -26,8 +26,7 @@ class I18n {
     // 查找所有i18n调用
     const allCallee = esquery(
       BlockNode,
-	`CallExpression[callee.type='Identifier'][callee.name='${this.variableId}']`
-
+      `CallExpression[callee.type='Identifier'][callee.name='${this.variableId}']`
     ) as CallExpression[];
     this.allCallee = allCallee;
   }
@@ -57,6 +56,10 @@ class I18n {
             },
           },
           range,
+          data: {
+            key: localeDataKey,
+            value: `${currentLocaleData[localeDataKey]}`
+          }
         });
       } else {
         warningKeyRange.push({
@@ -92,11 +95,16 @@ class I18n {
 export class I18nFormatter {
   public readonly i18nList: I18n[];
   constructor(blockNode: Node) {
-    const i18nHookCallee = esquery(
-      blockNode,
-      'VariableDeclarator:has( CallExpression[callee] > Identifier[name="useI18n"])'
-    );
-    this.i18nList = i18nHookCallee.map((calleeItem) => {
+    const hookMatch = Global.extensionConfig?.hookMatch;
+    let allHookCallee: Node[] = [];
+    hookMatch?.forEach((hookId) => {
+      const i18nHookCallee = esquery(
+        blockNode,
+        `VariableDeclarator:has( CallExpression[callee] > Identifier[name="${hookId}"])`
+      );
+      allHookCallee = allHookCallee.concat(i18nHookCallee);
+    });
+    this.i18nList = allHookCallee.map((calleeItem) => {
       const i18n = new I18n(calleeItem as VariableDeclarator, blockNode);
       return i18n;
     });

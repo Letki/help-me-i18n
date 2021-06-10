@@ -167,6 +167,9 @@ connection.onCompletionResolve((params) => {
   return params;
 });
 
+/**
+ * 代码提示 自动补全
+ */
 connection.onCompletion(({ textDocument, position }) => {
   const documentText = documents.get(textDocument.uri);
   const lineText = documentText?.getText(

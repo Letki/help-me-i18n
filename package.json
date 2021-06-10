@@ -19,6 +19,12 @@
   ],
   "main": "./client/out/extension",
   "contributes": {
+    "commands": [
+      {
+        "command": "extension.i18n.find",
+        "title": "查找当前文档i18n内容"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
