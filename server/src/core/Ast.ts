@@ -1,7 +1,9 @@
 import ts from "typescript";
 import path from "path";
 import { parse } from "@babel/parser";
-import { Node } from 'estree';
+import { Node } from "estree";
+import esquery from "esquery";
+import { Block } from "./Block";
 
 export const getScriptKind = (filename: string) => {
   const ext = path.extname(filename);
@@ -55,12 +57,43 @@ export function transformCode2Ast(code: string) {
 export class Ast {
   // public hookRst: any;
   public ast: Node;
-  public filename: string;
   public code: string;
-  constructor(filename: string, code: string) {
+  public readonly blockList: Block[];
+  constructor(code: string) {
     const ast = transformCode2Ast(code);
+    const body = esquery(ast as any, "Program > *");
     this.ast = ast as any;
-    this.filename = filename;
     this.code = code;
+    this.blockList = body.map((node) => {
+      
+      return new Block(node.type, node);
+    });
+  }
+}
+
+export class I18nAst extends Ast {
+  constructor(code: string) {
+    super(code);
+  }
+  public convertAll() {
+    // let rst = [] as any[];
+    let normal = [] as any[];
+    let warning = [] as any[];
+    this.blockList.forEach((item) => {
+      item.formatter
+        .convertAll()
+        .forEach(({ normalKeyRange, warningKeyRange }) => {
+          normal = normal.concat(normalKeyRange);
+          warning = warning.concat(warningKeyRange);
+        });
+    });
+    return [{ normalKeyRange: normal, warningKeyRange: warning }];
+  }
+  public getBlockItemByLine(line: number) {
+    return this.blockList.find((block) => {
+      const startLine = block.blockBodyNode.loc?.start.line ?? Infinity;
+      const endLine = block.blockBodyNode.loc?.end.line ?? Infinity;
+      return line >= startLine && line <= endLine;
+    });
   }
 }

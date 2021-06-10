@@ -9,20 +9,20 @@ import {
   InitializeParams,
   DidChangeConfigurationNotification,
   CompletionItemKind,
-  TextDocumentPositionParams,
   TextDocumentSyncKind,
   InitializeResult,
-  TextDocumentContentChangeEvent,
+  Range,
+  Position,
 } from "vscode-languageserver/node";
 
 import { TextDocument } from "vscode-languageserver-textdocument";
 import startsWith from "lodash/startsWith";
-import { Ast } from "./core/Ast";
+import { Ast, I18nAst } from "./core/Ast";
 import { defaultSettings, Global, IExtensionConfig } from "./core/Global";
 import { SETTING_NAME } from "./constants";
-import { I18nAst } from "./core/I18nAst";
 import esquery from "esquery";
-import { replacePrefix } from './utils';
+import { replacePrefix } from "./utils";
+import { Identifier, SimpleLiteral } from "estree";
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -87,7 +87,6 @@ connection.onInitialized(() => {
   }
 });
 
-
 let globalSettings: IExtensionConfig = defaultSettings;
 
 // Cache the settings of all open documents
@@ -135,90 +134,6 @@ documents.onDidChangeContent(async (change) => {
   formatDocumentI18n(change.document);
 });
 
-// 获取编辑行以展示代码提示
-connection.onNotification(
-  "i18n/getCompletion",
-  (params: {
-    lineText: false | string;
-    code: string;
-    contentChanges: TextDocumentContentChangeEvent[];
-  }) => {
-    const ast = new I18nAst("", params.code);
-    const { lineText, contentChanges = [] } = params;
-    const { range } = contentChanges[0] as any;
-    console.log(ast.i18nList[0]);
-    if (lineText) {
-      console.log("params.lineText");
-      const lineAst = new Ast("", lineText);
-      let rst = esquery(
-        lineAst.ast,
-        `CallExpression > Identifier[name="${ast.i18nList[0]?.variableId}"]`
-      );
-      rst = esquery(lineAst.ast, `StringLiteral`);
-      if (rst.length !== 0) {
-        connection.onCompletion(
-          async (_textDocumentPosition: TextDocumentPositionParams) => {
-            // console.log(_textDocumentPosition);
-            // 请求获取当前编辑中的文档内容
-            connection.sendNotification("i18n/getCurrentDocumentText", {
-              uri: _textDocumentPosition.textDocument.uri.toString(),
-            });
-            return new Promise((resolve) => {
-              // 响应发回来的当前编辑中的文档内容
-              connection.onNotification(
-                "i18n/currentDocumentText",
-                ({ code }) => {
-                  let ast = fileAstMap.get(
-                    _textDocumentPosition.textDocument.uri.toString()
-                  );
-                  if (!ast) {
-                    ast = new I18nAst(
-                      _textDocumentPosition.textDocument.uri.toString(),
-                      code
-                    );
-                  }
-                  const prefixKeyList = ast.i18nList
-                    .filter((item) => {
-                      return !!item.prefixKey;
-                    })
-                    .map((it) => it.prefixKey);
-                  let allI18nKey;
-                  if (prefixKeyList.length > 0) {
-                    allI18nKey = Object.keys(
-                      Global.localeData.get(Global.currentLocale) ?? {}
-                    ).filter((item) => {
-                      return prefixKeyList.some((prefix) =>
-                        startsWith(item, prefix)
-                      );
-                    });
-                  } else {
-                    allI18nKey = Object.keys(
-                      Global.localeData.get(Global.currentLocale) ?? {}
-                    );
-                  }
-                  resolve(
-                    allI18nKey.map((item) => {
-                      return {
-                        label: replacePrefix(prefixKeyList, item),
-                        kind: CompletionItemKind.Enum,
-                        data: replacePrefix(prefixKeyList, item),
-                        documentation: Global.localeData.get(Global.currentLocale)?.[item]
-                      };
-                    })
-                  );
-                }
-              );
-            });
-          }
-        );
-      } else {
-        connection.onCompletion(() => []);
-      }
-      console.log(params.lineText);
-    }
-  }
-);
-const fileAstMap = new Map<string, I18nAst>();
 let once = true;
 /** i18n 转换方法 */
 async function formatDocumentI18n(textDocument: TextDocument): Promise<void> {
@@ -228,13 +143,12 @@ async function formatDocumentI18n(textDocument: TextDocument): Promise<void> {
     await Global.loadConfig(settings);
     once = false;
   }
-  const ast = new I18nAst(textDocument.uri.toString(), textDocument.getText());
+  const ast = new I18nAst(textDocument.getText());
   const rst = ast.convertAll();
-  connection.sendNotification("i18n/convert", {
+  connection.sendNotification("i18n/convertRst", {
     uri: textDocument.uri,
     range: rst,
   });
-  fileAstMap.set(ast.filename, ast);
 }
 
 connection.onNotification("i18n/needConvert", (params) => {
@@ -249,7 +163,50 @@ connection.onNotification("i18n/needConvert", (params) => {
     )
   );
 });
+connection.onCompletionResolve((params) => {
+  return params;
+});
 
+connection.onCompletion(({ textDocument, position }) => {
+  const documentText = documents.get(textDocument.uri);
+  const lineText = documentText?.getText(
+    Range.create(
+      Position.create(position.line, 0),
+      Position.create(position.line, 9999)
+    )
+  );
+  const ast = new I18nAst(documentText?.getText() ?? "");
+  const block = ast.getBlockItemByLine(position.line);
+  const lineAst = new Ast(lineText ?? "");
+  // 找到输入的变量
+  const lineVarId = (
+    esquery(lineAst.ast, `CallExpression > Identifier`) as Identifier[]
+  )?.[0]?.name;
+  const argStringNode = (
+    esquery(lineAst.ast, `CallExpression > StringLiteral`) as SimpleLiteral[]
+  )?.[0];
+  // const argString = argStringNode?.value;
+  if (lineVarId && argStringNode && block) {
+    const currentI18nInstance = block?.formatter.i18nList.find((i18n) => {
+      return i18n.variableId === lineVarId;
+    });
+    const allI18nKey = Object.keys(
+      Global.localeData.get(Global.currentLocale) ?? {}
+    ).filter((item) => {
+      return startsWith(item, currentI18nInstance?.prefixKey);
+    });
+    return allI18nKey.map((item) => {
+      return {
+        label: replacePrefix([currentI18nInstance?.prefixKey ?? ""], item),
+        kind: CompletionItemKind.Enum,
+        data: replacePrefix([currentI18nInstance?.prefixKey ?? ""], item),
+        documentation: Global.localeData.get(Global.currentLocale)?.[item],
+      };
+    });
+  }
+
+  return [];
+});
 // Make the text document manager listen on the connection
 // for open, change and close text document events
 documents.listen(connection);

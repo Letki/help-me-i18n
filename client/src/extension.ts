@@ -67,7 +67,7 @@ export function activate(context: ExtensionContext) {
   // Start the client. This will also launch the server
   client.start();
   client.onReady().then(() => {
-    client.onNotification("i18n/convert", (params) => {
+    client.onNotification("i18n/convertRst", (params) => {
       // console.log(params);
       // console.log(window.activeTextEditor.document.uri);
       // console.log(window.activeTextEditor.document.uri);
@@ -135,25 +135,6 @@ export function activate(context: ExtensionContext) {
             code: documentText,
           });
         }
-      }
-    })
-  );
-  context.subscriptions.push(
-    workspace.onDidChangeTextDocument((editor) => {
-      if (
-        editor?.document.languageId &&
-        // 支持的语言才进行解析
-        SUPPORT_LANGUAGE.includes(editor?.document.languageId)
-      ) {
-        const lineText = editor.document.lineAt(
-          editor.contentChanges[0]?.range.start.line
-        );
-        client.sendNotification("i18n/getCompletion", {
-          lineText: lineText.isEmptyOrWhitespace ? false : lineText.text,
-          contentChanges: editor.contentChanges,
-          code: editor.document.getText(),
-          uri: "file://" + editor?.document.uri.toString(),
-        });
       }
     })
   );

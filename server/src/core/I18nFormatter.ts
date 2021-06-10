@@ -9,29 +9,27 @@ import {
 } from "estree";
 import { Global } from "./Global";
 import { Position, Range } from "vscode-languageserver/node";
-import { trimQuotation } from "../utils";
-import { Ast } from "./Ast";
+
 class I18n {
   public readonly prefixKey: string;
   public readonly variableId: string;
   private allCallee: CallExpression[];
-  private sourceCode: Node;
 
-  constructor(i18nHookCallee: VariableDeclarator, sourceCode: Node) {
+  constructor(i18nHookCallee: VariableDeclarator, BlockNode: Node) {
     const variableId = esquery(i18nHookCallee.id, "Identifier") as Identifier[];
     const prefixKey = esquery(
       i18nHookCallee.init as Expression,
       "StringLiteral"
     ) as SimpleLiteral[];
     this.prefixKey = (prefixKey[0]?.value as string) ?? "";
-    this.variableId = trimQuotation(variableId[0]?.name);
+    this.variableId = variableId[0]?.name;
     // 查找所有i18n调用
     const allCallee = esquery(
-      sourceCode,
-      `CallExpression:has( Identifier[name=${this.variableId}])`
+      BlockNode,
+	`CallExpression[callee.type='Identifier'][callee.name='${this.variableId}']`
+
     ) as CallExpression[];
     this.allCallee = allCallee;
-    this.sourceCode = sourceCode;
   }
 
   public convert() {
@@ -77,7 +75,8 @@ class I18n {
         "StringLiteral"
       )?.[0] as SimpleLiteral;
       const suffixKey = suffixKeyNode?.value;
-      const { end = 0 } = suffixKeyNode.loc ?? ({} as any);
+      const { end = { line: 1, column: 1 } } =
+        suffixKeyNode?.loc ?? ({} as any);
       setDecorationsKey(
         `${this.prefixKey ? `${this.prefixKey}.` : ""}${suffixKey}`,
         {
@@ -85,23 +84,20 @@ class I18n {
           column: end.column - 1,
         }
       );
-      // console.log(
-      // 	Global.localeData.get(Global.currentLocale)?.[`${this.prefixKey}.${suffixKey}`]
-      // );
     });
     return { normalKeyRange, warningKeyRange };
   }
 }
-export class I18nAst extends Ast {
+
+export class I18nFormatter {
   public readonly i18nList: I18n[];
-  constructor(filename: string, code: string) {
-    super(filename, code);
+  constructor(blockNode: Node) {
     const i18nHookCallee = esquery(
-      this.ast,
-      'VariableDeclarator:has( CallExpression > Identifier[name="useI18n"])'
+      blockNode,
+      'VariableDeclarator:has( CallExpression[callee] > Identifier[name="useI18n"])'
     );
     this.i18nList = i18nHookCallee.map((calleeItem) => {
-      const i18n = new I18n(calleeItem as VariableDeclarator, this.ast);
+      const i18n = new I18n(calleeItem as VariableDeclarator, blockNode);
       return i18n;
     });
   }
