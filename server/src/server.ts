@@ -153,15 +153,10 @@ async function formatDocumentI18n(textDocument: TextDocument): Promise<void> {
 
 connection.onNotification("i18n/needConvert", (params) => {
   // console.log(params);
-  formatDocumentI18n(
-    TextDocument.create(
-      // client 路径不带前缀
-      `file://${params.uri.path}`,
-      params.languageId,
-      params.version,
-      params.code
-    )
-  );
+  const textDoc = documents.get(`file://${params.uri.path}`);
+  if (textDoc) {
+    formatDocumentI18n(textDoc);
+  }
 });
 connection.onCompletionResolve((params) => {
   return params;

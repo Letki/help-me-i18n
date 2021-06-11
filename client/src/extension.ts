@@ -10,7 +10,6 @@ import {
   window,
   commands,
   QuickPickItem,
-  Selection,
 } from "vscode";
 
 import {
@@ -24,6 +23,7 @@ import {
   SUPPORT_LANGUAGE,
   warningDecorationType,
 } from "./constants";
+import { jumpToLineAndSelect } from "./utils";
 
 let client: LanguageClient;
 
@@ -139,12 +139,9 @@ export function activate(context: ExtensionContext) {
       ) {
         const documentText = editor?.document.getText();
         if (documentText) {
-          const { uri, languageId, version } = editor.document;
+          const { uri } = editor.document;
           client.sendNotification("i18n/needConvert", {
             uri: uri,
-            languageId: languageId,
-            version: version,
-            code: documentText,
           });
         }
       }
@@ -172,17 +169,24 @@ export function activate(context: ExtensionContext) {
             })
           );
         });
+        const editor = window.activeTextEditor;
         const { optionData } =
           (await window.showQuickPick(i18nKey, {
             title: "查找当前文档i18n内容",
             matchOnDescription: true,
+            onDidSelectItem: (
+              selectItem: { optionData: any } & QuickPickItem
+            ) => {
+              const { optionData } = selectItem;
+              if (optionData) {
+                const lineNumber = optionData.range.start.line;
+                jumpToLineAndSelect(lineNumber, editor);
+              }
+            },
           })) ?? {};
         if (optionData) {
           const lineNumber = optionData.range.start.line;
-          const editor = window.activeTextEditor;
-          const range = editor.document.lineAt(lineNumber).range;
-          editor.selection = new Selection(range.start, range.end);
-          editor.revealRange(range);
+          jumpToLineAndSelect(lineNumber, editor);
         }
       }
     })
